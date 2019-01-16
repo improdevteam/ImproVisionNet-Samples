@@ -21,7 +21,7 @@
 #include <opencv2/core.hpp>
 
 // getch
-#ifdef _WINDOWS_
+#ifdef _WINDOWS_ // for windows
     #include <conio.h>
 #else // for linux
     #include <termios.h>  // for tcxxxattr, ECHO, etc ..
@@ -43,7 +43,7 @@
     }
 #endif
 
-static const char *WORKING_DIRECTORY = "./computer_sender";
+static const char *WORKING_DIRECTORY = "./computer_receiver";
 static const char *SPACE_ID = "Impro";
 static const char *SENDER_NODE_ID = "Sender";
 static const char *CHANNEL_ID = "ArrayData";
@@ -55,10 +55,17 @@ using namespace std::chrono_literals;
 using namespace cv;
 using namespace impro;
 
+class EmptyChannelObserver: public ChannelObserver
+{
+public:
+    void dataReceived(Channel &channel)
+    {
+        cout << "Receive data: " << channel.currentDataId() << endl;
+    }
+};
+
 int main()
 {
-    srand(time(nullptr));
-
     // Step1. Prepare and Initialize ImproVisionNet
     AlljoynSpaceBuilder spaceBuilderForAlljoyn;
     data::ArrayVec3f    dataTypeArrayVec3f;
@@ -68,30 +75,36 @@ int main()
 
     // Step2. Join Space
     app.joinSpace(IMPRO_SPACE_TYPE_ALLJOYN,
-                  SPACE_ID, SENDER_NODE_ID, WORKING_DIRECTORY);
+                  SPACE_ID, RECEIVER_NODE_ID, WORKING_DIRECTORY);
     Space &space = app.getSpace(SPACE_ID);
 
-    // Step3. Get Local Node and Register a Channel
-    LocalNode &localNode = space.getLocalNode();
-    LocalChannel &localChannel = localNode.registerChannel(IMPRO_DATA_ARRAYVEC3F, CHANNEL_ID);
-
-
-    // Step4. Write Array Data through Channel
-    while(_getch() != 27)
+    // Step3. Finding Remote Node From Space
+    while(!space.hasRemoteNode(SENDER_NODE_ID))
     {
-        milliseconds now = duration_cast< milliseconds >(system_clock::now().time_since_epoch());
-        data::ArrayVec3f array;
-        for(int i = 0; i < rand() % 100 + 1; ++i)
-        {
-            Vec3d vec(static_cast<double>(rand())/RAND_MAX,
-                      static_cast<double>(rand())/RAND_MAX,
-                      static_cast<double>(rand())/RAND_MAX);
-            array.vec_.push_back(vec);
-        }
-        localChannel.write(to_string(now.count()), array);
+        cout << "Finding Remote Node: " << SENDER_NODE_ID << " ..." << endl;
+        this_thread::sleep_for(1s);
     }
 
-    // Step5. Finialize ImproVisionNet
+    // Step3. Finding Remote Channel From Remote Node
+    RemoteNode &sender = space.getRemoteNode(SENDER_NODE_ID);
+    while(!sender.hasChannel(CHANNEL_ID))
+    {
+        cout << "Finding Remote Channel: " << CHANNEL_ID << " ..." << endl;
+        this_thread::sleep_for(1s);
+    }
+
+    // Step4. Subscribe Remote Channel
+    RemoteChannel &channel = sender.getChannel(CHANNEL_ID);
+    EmptyChannelObserver observer;
+    channel.subscribe(&observer);
+
+    // Step5. Main Loop
+    while(_getch() != 27)
+    {
+        this_thread::sleep_for(1s);
+    }
+
+    // Step6. Finialize ImproVisionNet
     Application::Finalize();
 
     return 0;
