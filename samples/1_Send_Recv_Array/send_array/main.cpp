@@ -1,6 +1,10 @@
 // std
 #include <cstdlib>
+#include <ctime>
 #include <iostream>
+#include <chrono>
+#include <thread>
+#include <string>
 
 // impro
 #include <impro/application.hpp>
@@ -19,7 +23,6 @@
 // getch
 #ifdef _WINDOWS_
     #include <conio.h>
-    #include <synchapi.h>
 #else // for linux
     #include <termios.h>  // for tcxxxattr, ECHO, etc ..
     #include <unistd.h>    // for STDIN_FILENO
@@ -40,9 +43,6 @@
     }
 #endif
 
-using namespace std;
-using namespace impro;
-
 static const char *WORKING_DIRECTORY = "./computer01";
 static const char *SPACE_ID = "Impro";
 static const char *SENDER_NODE_ID = "Sender";
@@ -51,10 +51,18 @@ static const char *RECEIVER_NODE_ID = "Receiver";
 
 int main()
 {
+    using namespace std;
+    using namespace std::chrono;
+    using namespace std::chrono_literals;
+    using namespace cv;
+    using namespace impro;
+
+    srand(time(nullptr));
+
     AlljoynSpaceBuilder spaceBuilderForAlljoyn;
     data::ArrayVec3f    dataTypeArrayVec3f;
     SpaceBuilder::Prepare(IMPRO_SPACE_TYPE_ALLJOYN, spaceBuilderForAlljoyn);
-    DataType::Prepare(IMPRO_DATA_ARRAYVEC3F, dataTypeArrayVec3f);
+    impro::DataType::Prepare(IMPRO_DATA_ARRAYVEC3F, dataTypeArrayVec3f);
 
     Application &app = Application::Initialize();
 
@@ -64,14 +72,27 @@ int main()
     LocalNode &localNode = space.getLocalNode();
     LocalChannel &localChannel = localNode.registerChannel(IMPRO_DATA_ARRAYVEC3F, CHANNEL_ID);
 
-    int ch;
     while(!space.hasRemoteNode(RECEIVER_NODE_ID))
     {
-        Sleep(1000);
+        cout << "Finding " << RECEIVER_NODE_ID << endl;
+        this_thread::sleep_for(1s);
     }
 
 
 
+    while(_getch() != 27)
+    {
+        milliseconds now = duration_cast< milliseconds >(system_clock::now().time_since_epoch());
+        data::ArrayVec3f array;
+        for(int i = 0; i < rand() % 100 + 1; ++i)
+        {
+            Vec3d vec(static_cast<double>(rand())/RAND_MAX,
+                      static_cast<double>(rand())/RAND_MAX,
+                      static_cast<double>(rand())/RAND_MAX);
+            array.vec_.push_back(vec);
+        }
+        localChannel.write(to_string(now.count()), array);
+    }
 
     Application::Finalize();
 
