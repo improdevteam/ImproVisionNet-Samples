@@ -43,11 +43,11 @@
     }
 #endif
 
-static const char *WORKING_DIRECTORY = "./computer_receiver";
+static const char *WORKING_DIRECTORY = "./computer_receiver1";
 static const char *SPACE_ID = "Impro";
 static const char *SENDER_NODE_ID = "Sender";
 static const char *CHANNEL_ID = "ArrayData";
-static const char *RECEIVER_NODE_ID = "Receiver";
+static const char *RECEIVER_NODE_ID = "Receiver1";
 
 using namespace std;
 using namespace std::chrono;
