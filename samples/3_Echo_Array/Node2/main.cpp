@@ -63,12 +63,23 @@ class RecvDataHandler: public ChannelObserver
 public:
     void dataReceived(Channel &remoteChannel)
     {
-        cout << "Recv: " << remoteChannel.currentDataId() << endl;
-        Application  &app = Application::getInstance();
-        LocalChannel &localChannel = app.getSpace(SPACE_ID).getLocalNode().getChannel(NODE2_CHANNEL_ID);
         string dataId = remoteChannel.currentDataId();
         unique_ptr<data::ArrayVec3f> ptr(dynamic_cast<data::ArrayVec3f*>(remoteChannel.current()));
+        cout << "Receive from " << remoteChannel.getNode().getId() << " | dataId: " << dataId << endl;
+        for(unsigned long long i = 0; i < ptr->vec_.size(); ++i)
+            cout << ptr->vec_.at(i)[0] << ","
+                 << ptr->vec_.at(i)[1] << ","
+                 << ptr->vec_.at(i)[2] << endl;
+        cout << endl;
+        Application  &app = Application::getInstance();
+        LocalChannel &localChannel = app.getSpace(SPACE_ID).getLocalNode().getChannel(NODE2_CHANNEL_ID);
         localChannel.write(dataId, *ptr);
+        cout << app.getSpace(SPACE_ID).getLocalNode().getId() << " send data. | dataId: " << dataId << endl;
+        for(unsigned long long i = 0; i < ptr->vec_.size(); ++i)
+            cout << ptr->vec_.at(i)[0] << ","
+                 << ptr->vec_.at(i)[1] << ","
+                 << ptr->vec_.at(i)[2] << endl;
+        cout << endl;
     }
 };
 
