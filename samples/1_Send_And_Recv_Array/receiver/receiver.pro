@@ -3,7 +3,7 @@ CONFIG += console c++11
 CONFIG -= app_bundle
 CONFIG -= qt
 
-TARGET = array_receiver2
+TARGET = receiver
 
 DESTDIR += $$PWD/../../../bin
 

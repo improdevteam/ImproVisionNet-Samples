@@ -58,6 +58,8 @@ using namespace impro;
 class EmptyChannelObserver: public ChannelObserver
 {
 public:
+    EmptyChannelObserver() : ChannelObserver() {}
+
     void dataReceived(Channel &channel)
     {
         cout << "Receive data: " << channel.currentDataId() << endl;
@@ -67,10 +69,8 @@ public:
 int main()
 {
     // Step1. Prepare and Initialize ImproVisionNet
-    AlljoynSpaceBuilder spaceBuilderForAlljoyn;
-    data::ArrayVec3f    dataTypeArrayVec3f;
-    SpaceBuilder::Prepare(IMPRO_SPACE_TYPE_ALLJOYN, spaceBuilderForAlljoyn);
-    impro::DataType::Prepare(IMPRO_DATA_ARRAYVEC3F, dataTypeArrayVec3f);
+    SpaceBuilder::Prepare(IMPRO_SPACE_TYPE_ALLJOYN, AlljoynSpaceBuilder());
+    impro::DataType::Prepare(IMPRO_DATA_ARRAYVEC3F, data::ArrayVec3f());
     Application &app = Application::Initialize();
 
     // Step2. Join Space
