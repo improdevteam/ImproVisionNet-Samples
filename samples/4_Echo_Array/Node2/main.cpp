@@ -5,6 +5,7 @@
 #include <chrono>
 #include <thread>
 #include <string>
+#include <memory>
 
 // impro
 #include <impro/application.hpp>
@@ -21,7 +22,7 @@
 #include <opencv2/core.hpp>
 
 // getch
-#ifdef _WINDOWS_ // for windows
+#ifdef _WINDOWS_
     #include <conio.h>
 #else // for linux
     #include <termios.h>  // for tcxxxattr, ECHO, etc ..
@@ -43,11 +44,13 @@
     }
 #endif
 
-static const char *WORKING_DIRECTORY = "./computer_receiver2";
+static const char *WORKING_DIRECTORY = "./computer_node2";
 static const char *SPACE_ID = "Impro";
-static const char *SENDER_NODE_ID = "Sender2";
-static const char *CHANNEL_ID = "ArrayData";
-static const char *RECEIVER_NODE_ID = "Receiver2";
+static const char *NODE1_ID = "Node1";
+static const char *NODE1_CHANNEL_ID = "SendData";
+static const char *NODE2_ID = "Node2";
+static const char *NODE2_CHANNEL_ID = "ReturnData";
+
 
 using namespace std;
 using namespace std::chrono;
@@ -58,11 +61,22 @@ using namespace impro;
 class RecvDataHandler: public ChannelObserver
 {
 public:
+    RecvDataHandler() : ChannelObserver() {}
+
     void dataReceived(Channel &remoteChannel)
     {
         string dataId = remoteChannel.currentDataId();
-        unique_ptr<data::ArrayVec3f> ptr(dynamic_cast<data::ArrayVec3f*>(remoteChannel.current()));
+        shared_ptr<data::ArrayVec3f> ptr = static_pointer_cast<data::ArrayVec3f>(remoteChannel.current());
         cout << "Receive from " << remoteChannel.getNode().getId() << " | dataId: " << dataId << endl;
+        for(unsigned long long i = 0; i < ptr->vec_.size(); ++i)
+            cout << ptr->vec_.at(i)[0] << ","
+                 << ptr->vec_.at(i)[1] << ","
+                 << ptr->vec_.at(i)[2] << endl;
+        cout << endl;
+        Application  &app = Application::getInstance();
+        LocalChannel &localChannel = app.getSpace(SPACE_ID).getLocalNode().getChannel(NODE2_CHANNEL_ID);
+        localChannel.write(dataId, *ptr);
+        cout << app.getSpace(SPACE_ID).getLocalNode().getId() << " send data. | dataId: " << dataId << endl;
         for(unsigned long long i = 0; i < ptr->vec_.size(); ++i)
             cout << ptr->vec_.at(i)[0] << ","
                  << ptr->vec_.at(i)[1] << ","
@@ -71,57 +85,46 @@ public:
     }
 };
 
+
 int main()
 {
+    srand(time(nullptr));
+
     // Step1. Prepare and Initialize ImproVisionNet
-    AlljoynSpaceBuilder spaceBuilderForAlljoyn;
-    data::ArrayVec3f    dataTypeArrayVec3f;
-    SpaceBuilder::Prepare(IMPRO_SPACE_TYPE_ALLJOYN, spaceBuilderForAlljoyn);
-    impro::DataType::Prepare(IMPRO_DATA_ARRAYVEC3F, dataTypeArrayVec3f);
+    SpaceBuilder::Prepare(IMPRO_SPACE_TYPE_ALLJOYN, AlljoynSpaceBuilder());
+    impro::DataType::Prepare(IMPRO_DATA_ARRAYVEC3F, data::ArrayVec3f());
     Application &app = Application::Initialize();
 
-    // Step2. Join Space
-    cout << "test0" << endl;
-
+    // Step2. Join Space, Get Local Node and Register a Channel - "I am node2"
     app.joinSpace(IMPRO_SPACE_TYPE_ALLJOYN,
-                  SPACE_ID, RECEIVER_NODE_ID, WORKING_DIRECTORY);
+                  SPACE_ID, NODE2_ID, WORKING_DIRECTORY);
     Space &space = app.getSpace(SPACE_ID);
+    LocalNode &node2 = space.getLocalNode();
+    node2.registerChannel(IMPRO_DATA_ARRAYVEC3F, NODE2_CHANNEL_ID);
 
-    cout << "test1" << endl;
-
-    // Step3. Finding Remote Node From Space
-    while(!space.hasRemoteNode(SENDER_NODE_ID))
+    // Step3. Finding node1 and its channel
+    while(!space.hasRemoteNode(NODE1_ID))
     {
-        cout << "Finding Remote Node: " << SENDER_NODE_ID << " ..." << endl;
+        cout << "Finding Remote Node: " << NODE1_ID << " ..." << endl;
         this_thread::sleep_for(1s);
     }
-
-    cout << "test2" << endl;
-
-    // Step3. Finding Remote Channel From Remote Node
-    RemoteNode &sender = space.getRemoteNode(SENDER_NODE_ID);
-    while(!sender.hasChannel(CHANNEL_ID))
+    RemoteNode &node1 = space.getRemoteNode(NODE1_ID);
+    while(!node1.hasChannel(NODE1_CHANNEL_ID))
     {
-        cout << "Finding Remote Channel: " << CHANNEL_ID << " ..." << endl;
+        cout << "Finding Remote Channel: " << NODE1_CHANNEL_ID << " ..." << endl;
         this_thread::sleep_for(1s);
     }
-
-    cout << "test3" << endl;
-
-    // Step4. Subscribe Remote Channel
-    RemoteChannel &channel = sender.getChannel(CHANNEL_ID);
+    RemoteChannel &channel = node1.getChannel(NODE1_CHANNEL_ID);
     RecvDataHandler handler;
     channel.subscribe(&handler);
 
-    cout << "test4" << endl;
-
-    // Step5. Main Loop
+    // Step4. Main Loop
     while(_getch() != 27)
     {
         this_thread::sleep_for(1s);
     }
 
-    // Step6. Finialize ImproVisionNet
+    // Step5. Finialize ImproVisionNet
     Application::Finalize();
 
     return 0;
